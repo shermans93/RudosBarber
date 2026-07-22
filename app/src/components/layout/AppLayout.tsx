@@ -3,9 +3,12 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { LowStockModal } from './LowStockModal';
+import { InactivityWarningModal } from './InactivityWarningModal';
+import { useInactivityLogout } from '../../hooks/useInactivityLogout';
 
 export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { warningVisible, secondsLeft, continueSession } = useInactivityLogout();
 
   return (
     <div className="min-h-screen flex">
@@ -17,6 +20,9 @@ export function AppLayout() {
         </div>
       </main>
       <LowStockModal />
+      {warningVisible && (
+        <InactivityWarningModal secondsLeft={secondsLeft} onContinue={continueSession} />
+      )}
     </div>
   );
 }

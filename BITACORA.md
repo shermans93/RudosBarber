@@ -395,12 +395,49 @@ header/contenido real. Por eso parecía que no cargaba nada.
   modo dispositivo móvil y confirmó que el menú funciona (☰ abre el drawer con backdrop, ✕/tocar
   fuera/navegar lo cierra).
 
-**No verificado aún:** no se ha probado en un celular real (solo emulación de DevTools en local);
-falta confirmar en producción (Render) desde el celular del usuario.
+**Verificado por el usuario:** probado en el celular real ya en producción (Render) — el menú ☰
+funciona correctamente.
+
+**Pendiente / próximos pasos (superado, ver entrada siguiente):**
+1. ~~Commitear y pushear este cambio de layout responsive~~ — hecho (commit `8db44f0`).
+2. Confirmar visualmente el borrado total de datos (Productos/Entradas/Salidas/Ventas vacíos,
+   Usuarios intacto) — sigue pendiente de sesiones anteriores.
+3. Sigue pendiente: caso de stock insuficiente en venta multi-producto, alertas de stock bajo,
+   alta de un segundo usuario, dar de alta productos de nuevo en el catálogo.
+
+---
+
+## 2026-07-22 (continuación 4) — Cierre de sesión automático por inactividad
+
+**Pregunta del usuario:** si existía la posibilidad de que la sesión se cerrara sola por
+inactividad, por seguridad. Respuesta: no, el cliente de Supabase (`persistSession: true` +
+`autoRefreshToken: true`, config por defecto) refresca el token solo indefinidamente mientras haya
+conexión — una sesión podía quedar abierta días sin usarse. El usuario pidió implementarlo, con
+aviso previo antes de cerrar (no un cierre directo sin avisar).
+
+**Hecho:**
+- `app/src/hooks/useInactivityLogout.ts`: hook nuevo. Temporizador de inactividad (eventos
+  `mousedown`/`keydown`/`touchstart`/`scroll` en `window` lo reinician) con límite configurable
+  (`INACTIVITY_LIMIT_MS`, constante al inicio del archivo); al vencer, activa un aviso con cuenta
+  regresiva (`WARNING_COUNTDOWN_S`) que si llega a 0 llama a `logout()` del `AuthContext`.
+  Deliberado: mientras el aviso está visible, mover el mouse/teclado **no** lo reinicia — solo el
+  clic explícito en "Seguir conectado" cuenta, para que el aviso realmente confirme presencia del
+  usuario y no un movimiento accidental del mouse.
+- `app/src/components/layout/InactivityWarningModal.tsx`: modal con el mensaje y el botón "Seguir
+  conectado", reutilizando el componente `Modal` existente.
+- `AppLayout.tsx` monta el hook y el modal — solo corre para pantallas autenticadas (dentro del
+  layout), no en el login.
+- Valores finales: **15 minutos** de inactividad, **60 segundos** de aviso antes de cerrar sesión.
+- Probado por el usuario en local con los tiempos bajados temporalmente (20s/10s) para no esperar
+  15 minutos reales — confirmó ambos escenarios (dejar que llegue a 0 cierra sesión; "Seguir
+  conectado" antes de que termine la mantiene abierta). Se revirtieron los valores a 15min/60s
+  antes de comitear.
+- Verificado: `npx tsc -b` y `npm run build` limpios.
 
 **Pendiente / próximos pasos:**
-1. Commitear y pushear este cambio de layout responsive, y confirmar en el celular real del
-   usuario una vez desplegado en Render.
+1. Commitear y pushear este cambio, y confirmar en producción (Render) que el comportamiento con
+   los tiempos reales (15 min) es el esperado — no se probó end-to-end con los tiempos reales,
+   solo con los acelerados.
 2. Confirmar visualmente el borrado total de datos (Productos/Entradas/Salidas/Ventas vacíos,
    Usuarios intacto) — sigue pendiente de sesiones anteriores.
 3. Sigue pendiente: caso de stock insuficiente en venta multi-producto, alertas de stock bajo,
