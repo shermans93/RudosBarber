@@ -5,7 +5,13 @@
       "PowerShell(winget *)",
       "PowerShell(wsl --status)",
       "PowerShell(wsl --install)",
-      "PowerShell(\\([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent\\(\\)\\).IsInRole\\([Security.Principal.WindowsBuiltInRole]::Administrator\\))"
+      "PowerShell(\\([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent\\(\\)\\).IsInRole\\([Security.Principal.WindowsBuiltInRole]::Administrator\\))",
+      "Bash(npm -v)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/vite/package.json'\\).engines\\)\")",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
