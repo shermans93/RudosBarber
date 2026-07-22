@@ -17,8 +17,11 @@ stock entries/exits, sales, low-stock alerts, and a users screen. It has three p
 - `app/` — the live application: **Vite + React + TypeScript** SPA. This is what you build, run,
   and edit for any feature work.
 - `supabase/migrations/` — the Postgres schema and business-logic functions for the **Supabase**
-  backend (Auth + Postgres + RLS). No server code of our own exists — the SPA talks to Supabase
-  directly from the browser.
+  backend (Auth + Postgres + RLS). The SPA talks to Supabase directly from the browser for
+  everything except the one privileged action documented under "Edge Functions" below.
+- `supabase/functions/` — the one piece of server-side code in this repo: Supabase Edge Functions,
+  used only for actions that require the `service_role` key (which must never reach the browser).
+  See "Edge Functions" below.
 - `_diseno_extraido/` — the original static design prototype (a `.dc.html` file + its `support.js`
   runtime) that `app/` was built from. It is a **design reference only**, not part of the running
   app, and is never executed or edited — see "Design reference" below if you need to check original
@@ -63,6 +66,23 @@ user-facing `usuario`/`nombre`/`rol` and is auto-populated by a `handle_new_user
 Creating a new user (Usuarios screen) uses a **second, non-persistent Supabase client**
 (`app/src/lib/supabaseSignupClient.ts`, `persistSession: false`) to call `signUp()` — using the
 main client there would replace the admin's active session with the new user's.
+
+**Edge Functions (`supabase/functions/`):** the only server-side code in this repo, used
+exclusively for the one action that requires the `service_role` key — an admin changing **another**
+user's password (Supabase Auth's client SDK can only update the currently-signed-in user's own
+password; changing someone else's requires the Admin API, which requires `service_role`, which must
+never be shipped to the browser). `reset-password` (`supabase/functions/reset-password/index.ts`)
+receives the caller's JWT (attached automatically by `supabase.functions.invoke`), verifies the
+caller's own `profiles.rol = 'Administrador'` using a client scoped to that JWT, then uses a
+separate `service_role`-scoped client (built from the `SUPABASE_SERVICE_ROLE_KEY` env var Supabase
+injects into every Edge Function automatically — never stored in `app/`) to call
+`auth.admin.updateUserById()`. Client side: `useResetUserPassword()`
+(`app/src/hooks/useProfiles.ts`) calls `supabase.functions.invoke('reset-password', ...)`; the
+Usuarios screen (`app/src/pages/UsuariosPage.tsx`) has a "Cambiar contraseña" action per row that
+opens `ChangePasswordModal`. Unlike SQL migrations (pasted into the SQL Editor), Edge Functions are
+deployed by pasting the code into **Dashboard → Edge Functions** (or via `supabase functions
+deploy` if the CLI is linked) — there is no local dev/emulation of this function in this project,
+so changes to `reset-password/index.ts` must be re-pasted and redeployed manually.
 
 **Stock movements are never mutated directly from the client.** Entradas/Salidas call Postgres RPC
 functions (`registrar_entrada`, `registrar_salida` in `supabase/migrations/0002_rpc_movimientos.sql`,

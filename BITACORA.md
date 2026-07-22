@@ -265,4 +265,105 @@ obligatoria, encabezados e historial de Salidas, y filtro de fechas, todo funcio
    caso de stock insuficiente en venta multi-producto, alertas de stock bajo, alta de un segundo
    usuario.
 
+---
+
+## 2026-07-22 (continuación) — Despliegue en Render resuelto + validaciones en Ventas + cambio de contraseña
+
+**Despliegue en Render:** el usuario creó el Static Site. Dos problemas encontrados y resueltos
+durante el primer deploy (no requirieron cambios en el repo, solo en la configuración del
+dashboard de Render):
+1. `Publish directory app/dist does not exist` — el usuario había puesto `app/dist` en Publish
+   Directory con `Root Directory = app`, duplicando el prefijo (`app/app/dist`). Corregido a
+   `dist` a secas.
+2. Tras corregir eso, el login fallaba con `Invalid supabaseUrl`. Causa: `VITE_SUPABASE_URL` tenía
+   pegada la URL del **Data API** (`https://<ref>.supabase.co/rest/v1/`) en vez de la URL base del
+   proyecto. Corregido a `https://<ref>.supabase.co` sin sufijo. El sitio quedó funcionando en
+   producción con login verificado por el usuario.
+
+**Validaciones agregadas en Ventas (`VentasPage.tsx`), sin migraciones:**
+- Si el campo Cliente está vacío y se intenta seleccionar un producto en el `<select>`, se bloquea
+  la selección y se muestra "Debes indicar el nombre del cliente antes de seleccionar un producto."
+  (la selección solo se confirma en el estado si `cliente` no está vacío; al ser un select
+  controlado, si no se actualiza el estado el navegador revierte visualmente la selección).
+- Al hacer clic en "+ Agregar producto": si no hay producto seleccionado, "Selecciona un
+  producto."; si hay producto pero la cantidad es vacía/0/negativa, "Debes colocar la cantidad."
+  (antes ambos casos fallaban en silencio, sin mensaje).
+
+**Nueva función: cambiar contraseña de otro usuario (Usuarios screen).** El usuario pidió
+explícitamente que el admin pudiera cambiar la clave de *cualquier* usuario (no solo la propia),
+lo cual requiere la Admin API de Supabase Auth y por lo tanto la `service_role` key — esto no se
+puede hacer solo desde el navegador con la anon key. Se agregó la primera pieza de backend propio
+del proyecto:
+- `supabase/functions/reset-password/index.ts`: Edge Function que recibe `{user_id, new_password}`,
+  valida con el JWT del que llama (vía `Authorization` header, adjuntado automático por
+  `supabase.functions.invoke`) que su `profiles.rol = 'Administrador'`, y si es así usa un cliente
+  aparte con `SUPABASE_SERVICE_ROLE_KEY` (env var que Supabase inyecta solo, no se guarda en el
+  repo) para llamar `auth.admin.updateUserById()`. Maneja CORS (preflight `OPTIONS` + headers).
+- `useResetUserPassword()` en `app/src/hooks/useProfiles.ts` invoca la función vía
+  `supabase.functions.invoke('reset-password', ...)`.
+- `UsuariosPage.tsx`: columna "Acciones" con botón "Cambiar contraseña" por fila, abre
+  `ChangePasswordModal` (nueva contraseña + confirmar, mínimo 6 caracteres, mensaje de éxito).
+- `CLAUDE.md` actualizado: la afirmación "No server code of our own exists" ya no aplica tal cual;
+  se agregó sección "Edge Functions" explicando el porqué (Admin API vs. anon key) y el patrón de
+  despliegue (pegar en Dashboard → Edge Functions, sin CLI ni entorno local de Functions).
+- Verificado: `npx tsc -b` y `npm run build` limpios. **No verificado aún:** la función no se ha
+  desplegado en Supabase todavía (no hay `supabase/functions/` ni CLI vinculada localmente), así
+  que el flujo de cambio de contraseña no se ha probado end-to-end.
+
+**Pendiente / próximos pasos (superado, ver entrada siguiente):**
+1. ~~El usuario debe desplegar `reset-password`~~ — hecho, ver entrada siguiente.
+2. Commitear y pushear estos cambios a GitHub para que Render los tome — **todavía no hecho**,
+   sigue pendiente (ver entrada siguiente).
+3. Sigue pendiente de sesiones anteriores: caso de stock insuficiente en venta multi-producto,
+   alertas de stock bajo, alta de un segundo usuario.
+
+---
+
+## 2026-07-22 (continuación 2) — Fix de `reset-password` + borrado total de datos de prueba
+
+**Bug encontrado al probar `reset-password` end-to-end:** el usuario desplegó la función y probó
+"Cambiar contraseña" en Usuarios; siempre devolvía `401` con `"Edge Function returned a non-2xx
+status code"` (mensaje genérico del cliente de Supabase, no el real). Se depuró revisando
+Invocations en el dashboard de Supabase (`response.status_code: 401`, con `sb.auth_user` presente
+en el log — es decir, el JWT del que llama SÍ llegaba bien a la función).
+
+**Causa raíz:** `callerClient.auth.getUser()` se llamaba **sin argumento**. El método `getUser()`
+de supabase-js, si no recibe el JWT como parámetro explícito, ignora el header `Authorization`
+que se le configuró al cliente (ese header solo aplica a las llamadas de PostgREST/Storage/
+Functions, no a las internas de `auth-js`) y busca una sesión interna que no existe en un cliente
+recién creado en el servidor — por eso siempre devolvía "Sesión inválida" (401), sin importar
+quién llamara.
+
+**Fix:** `supabase/functions/reset-password/index.ts` ahora extrae el bearer token del header
+(`authHeader.replace(/^Bearer\s+/i, '')`) y se lo pasa explícitamente:
+`callerClient.auth.getUser(bearerToken)`. El usuario repegó el archivo corregido en Supabase
+Dashboard → Edge Functions → `reset-password` y redesplegó.
+
+**Verificado por el usuario:** tras el redeploy, "Cambiar contraseña" en Usuarios funciona
+end-to-end (modal muestra éxito, la nueva clave permite loguearse).
+
+**Borrado total de datos de prueba.** El usuario pidió limpiar todas las tablas excepto usuarios;
+al confirmar alcance, eligió **historial + catálogo de productos** (reset total), no solo el
+historial transaccional. Se le entregó este script (no ejecutado por mí — sin acceso directo a la
+base de datos, solo puedo generar SQL para que el usuario lo corra en el SQL Editor):
+```sql
+truncate table public.sales, public.sale_invoices, public.movements, public.products
+  restart identity;
+```
+Listar las 4 tablas juntas en un solo `truncate` resuelve las referencias entre ellas sin
+`cascade`; `restart identity` reinicia los IDs desde 1; no toca `profiles` ni `auth.users`. El
+usuario confirmó haberlo corrido. **No verificado por mí ni explícitamente confirmado por el
+usuario tras correrlo:** que Productos/Entradas/Salidas/Ventas se vean vacíos y que Usuarios siga
+intacto en la UI — quedó pendiente de que el usuario revise esas 4 pantallas.
+
+**Pendiente / próximos pasos:**
+1. Confirmar visualmente que las 4 pantallas (Productos, Entradas, Salidas, Ventas) quedaron
+   vacías y que Usuarios sigue con las cuentas y contraseñas funcionando.
+2. **Commitear y pushear a GitHub** el trabajo de esta sesión y la anterior (validaciones de
+   Ventas, feature de cambiar contraseña con el fix del bug de autenticación, cambios en
+   `CLAUDE.md`) — sigue sin subirse, Render no lo tiene todavía.
+3. Sigue pendiente de sesiones anteriores: caso de stock insuficiente en venta multi-producto,
+   alertas de stock bajo, alta de un segundo usuario.
+4. Dar de alta productos de nuevo en el catálogo (quedó vacío tras el reset).
+
 <!-- Nueva entrada: copiar el bloque de arriba (## AAAA-MM-DD, Hecho, Pendiente) y completarlo. -->

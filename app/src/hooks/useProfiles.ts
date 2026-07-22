@@ -44,3 +44,20 @@ export function useCreateUser() {
     },
   });
 }
+
+export interface ResetPasswordInput {
+  userId: string;
+  nuevaClave: string;
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: async ({ userId, nuevaClave }: ResetPasswordInput) => {
+      const { data, error } = await supabase.functions.invoke('reset-password', {
+        body: { user_id: userId, new_password: nuevaClave },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+  });
+}

@@ -37,13 +37,29 @@ export function VentasPage() {
     return (!fechaInicial || f >= fechaInicial) && (!fechaFinal || f <= fechaFinal);
   });
 
+  function handleSelectProduct(value: string) {
+    if (value && !cliente.trim()) {
+      setLineError('Debes indicar el nombre del cliente antes de seleccionar un producto.');
+      return;
+    }
+    setLineError('');
+    setLineProductId(value);
+  }
+
   function handleAddLine(e: FormEvent) {
     e.preventDefault();
     setLineError('');
     const pid = Number(lineProductId);
     const qty = Number(lineCantidad);
     const product = activeProducts.find((p) => p.id === pid);
-    if (!product || !qty || qty <= 0) return;
+    if (!product) {
+      setLineError('Selecciona un producto.');
+      return;
+    }
+    if (!qty || qty <= 0) {
+      setLineError('Debes colocar la cantidad.');
+      return;
+    }
 
     const yaEnCarrito = cart.find((l) => l.productId === pid)?.cantidad ?? 0;
     if (yaEnCarrito + qty > product.stock) {
@@ -109,7 +125,7 @@ export function VentasPage() {
             <SelectField
               label="Producto"
               value={lineProductId}
-              onChange={(e) => setLineProductId(e.target.value)}
+              onChange={(e) => handleSelectProduct(e.target.value)}
             >
               <option value="">Selecciona un producto</option>
               {activeProducts.map((p) => (
