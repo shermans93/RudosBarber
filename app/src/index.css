@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@theme {
+  --color-bg: #f4f4f2;
+  --color-ink: #1a1a19;
+  --color-muted: #8a8a86;
+  --color-muted-2: #a1a19c;
+  --color-label: #52524e;
+  --color-card-border: #eaeae6;
+  --color-row-border: #f0f0ec;
+  --color-input-bg: #fafafa;
+  --color-input-border: #e2e2de;
+  --color-sidebar: #141413;
+  --color-sidebar-idle: #a1a19c;
+  --color-accent: #c0392b;
+  --color-danger-bg: #fdeceb;
+  --color-danger-border: #f5c9c4;
+  --color-danger-text: #b23129;
+  --color-success-bg: #e8f3ec;
+  --color-success-text: #2f7d4f;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-sans:
+    'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --radius-card: 16px;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  select,
+  button,
+  textarea {
+    font-family: inherit;
+  }
+
+  input:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--color-ink) !important;
+  }
+
+  ::placeholder {
+    color: var(--color-muted-2);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d8d8d4;
+    border-radius: 8px;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.4s ease;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease;
+}
+
+/* Impresión de comprobantes: solo #print-area es visible al imprimir,
+   el resto de la app (sidebar, header, overlay del modal, etc.) se oculta. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
