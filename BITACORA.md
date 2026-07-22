@@ -356,14 +356,54 @@ usuario confirmó haberlo corrido. **No verificado por mí ni explícitamente co
 usuario tras correrlo:** que Productos/Entradas/Salidas/Ventas se vean vacíos y que Usuarios siga
 intacto en la UI — quedó pendiente de que el usuario revise esas 4 pantallas.
 
-**Pendiente / próximos pasos:**
+**Pendiente / próximos pasos (parcialmente superado, ver entrada siguiente):**
 1. Confirmar visualmente que las 4 pantallas (Productos, Entradas, Salidas, Ventas) quedaron
    vacías y que Usuarios sigue con las cuentas y contraseñas funcionando.
-2. **Commitear y pushear a GitHub** el trabajo de esta sesión y la anterior (validaciones de
-   Ventas, feature de cambiar contraseña con el fix del bug de autenticación, cambios en
-   `CLAUDE.md`) — sigue sin subirse, Render no lo tiene todavía.
+2. ~~Commitear y pushear a GitHub~~ — hecho (commit `c1af977`, ver entrada de despliegue).
 3. Sigue pendiente de sesiones anteriores: caso de stock insuficiente en venta multi-producto,
    alertas de stock bajo, alta de un segundo usuario.
 4. Dar de alta productos de nuevo en el catálogo (quedó vacío tras el reset).
+
+---
+
+## 2026-07-22 (continuación 3) — Layout responsive para celular (menú hamburguesa)
+
+**Reporte del usuario:** al abrir el sitio desde el celular, "no carga ninguna opción" — no se
+veía el menú de navegación.
+
+**Causa raíz:** la app nunca tuvo diseño responsive. `AppLayout.tsx` usaba `flex flex-wrap` con el
+`Sidebar` de ancho fijo (`w-[246px]`) y `min-h-screen`. En pantallas angostas, el sidebar no cabe
+junto al contenido y `flex-wrap` lo manda a su propia fila — pero como esa fila quedaba forzada a
+ocupar el alto completo de la pantalla (`min-h-screen`), el usuario tenía que hacer scroll un
+pantallazo completo (viendo solo una franja oscura angosta a la izquierda) antes de llegar al
+header/contenido real. Por eso parecía que no cargaba nada.
+
+**Fix — patrón de menú hamburguesa (afecta solo `app/src/components/layout/`, sin migraciones):**
+- `AppLayout.tsx`: nuevo estado `mobileNavOpen`; cambia `flex-wrap` por `flex` simple, `main` pasa
+  de `min-w-[320px]` a `min-w-0` (evita que el contenido fuerce scroll horizontal en pantallas
+  angostas), padding del contenido reducido en móvil (`p-4 md:p-8`).
+- `Sidebar.tsx`: ahora recibe `mobileOpen`/`onClose`. En móvil es un drawer fijo
+  (`fixed inset-y-0 left-0`, `-translate-x-full` cuando cerrado) con un backdrop oscuro semi-
+  transparente detrás que cierra al tocarlo; agrega un botón ✕ propio (visible solo en móvil,
+  `md:hidden`). En `md:` (768px) y más ancho vuelve a comportarse como columna estática siempre
+  visible (`md:static md:translate-x-0`), igual que antes. Cada `NavLink` ahora también cierra el
+  drawer al navegar (`onClick={onClose}`). Se quitó `min-h-screen` (ya no hace falta: fijo ocupa
+  toda la altura en móvil, y `flex`+`static` estira la altura en desktop).
+- `Header.tsx`: nuevo botón ☰ (visible solo en móvil, `md:hidden`) que abre el drawer; padding
+  horizontal reducido en móvil (`px-4 md:px-8`).
+- Verificado: `npx tsc -b` y `npm run build` limpios. El usuario probó en local con DevTools en
+  modo dispositivo móvil y confirmó que el menú funciona (☰ abre el drawer con backdrop, ✕/tocar
+  fuera/navegar lo cierra).
+
+**No verificado aún:** no se ha probado en un celular real (solo emulación de DevTools en local);
+falta confirmar en producción (Render) desde el celular del usuario.
+
+**Pendiente / próximos pasos:**
+1. Commitear y pushear este cambio de layout responsive, y confirmar en el celular real del
+   usuario una vez desplegado en Render.
+2. Confirmar visualmente el borrado total de datos (Productos/Entradas/Salidas/Ventas vacíos,
+   Usuarios intacto) — sigue pendiente de sesiones anteriores.
+3. Sigue pendiente: caso de stock insuficiente en venta multi-producto, alertas de stock bajo,
+   alta de un segundo usuario, dar de alta productos de nuevo en el catálogo.
 
 <!-- Nueva entrada: copiar el bloque de arriba (## AAAA-MM-DD, Hecho, Pendiente) y completarlo. -->
