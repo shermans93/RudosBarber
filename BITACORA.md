@@ -238,4 +238,31 @@ obligatoria, encabezados e historial de Salidas, y filtro de fechas, todo funcio
 
 ---
 
+## 2026-07-22 — Preparación para despliegue en Render
+
+**Pedido del usuario:** dejar el repo listo para desplegar en Render (ya publicado en GitHub,
+`shermans93/RudosBarber`).
+
+**Hecho:**
+- `render.yaml` en la raíz del repo: define un Static Site (`env: static`) con `rootDir: app`,
+  `buildCommand: npm install && npm run build`, `staticPublishPath: ./dist`, y dos env vars
+  declaradas sin valor (`sync: false`) para que Render pida `VITE_SUPABASE_URL` y
+  `VITE_SUPABASE_ANON_KEY` al crear el servicio desde el Blueprint.
+- `app/.node-version` (`22.12.0`) y `engines.node` (`>=20.19.0`) en `app/package.json`: Vite 8
+  requiere Node `^20.19.0 || >=22.12.0`; sin pin, el runtime por defecto de Render podía ser más
+  viejo y romper el build.
+- No se tocó el enrutamiento: `HashRouter` ya evita necesitar reglas de rewrite/redirect en el
+  hosting (confirmado en `App.tsx`), así que no se agregó ninguna a `render.yaml`.
+- Verificado localmente: `npm run build` (desde `app/`) compila y genera `dist/` sin errores
+  (único warning cosmético: el bundle JS de ~516 kB supera el límite default de aviso de Vite —
+  no es un error, no se atacó code-splitting por no ser parte de este pedido).
+
+**Pendiente / próximos pasos:**
+1. El usuario debe crear el servicio en Render (Blueprint desde `render.yaml`, o manual apuntando
+   a `app/` como Root Directory) y cargar ahí las credenciales reales de Supabase — instrucciones
+   paso a paso dadas en el chat, no repetidas aquí porque no son parte del repo.
+2. Sigue pendiente lo de sesiones anteriores: script de limpieza de movimientos/ventas de prueba,
+   caso de stock insuficiente en venta multi-producto, alertas de stock bajo, alta de un segundo
+   usuario.
+
 <!-- Nueva entrada: copiar el bloque de arriba (## AAAA-MM-DD, Hecho, Pendiente) y completarlo. -->
